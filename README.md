@@ -32,13 +32,13 @@ orders-system-api/
 ├── src/
 │   ├── main/
 │   │   ├── mule/                  # Mule flows
+│           └── orders-system-api.xml
 │   │   └── resources/
 │   │       ├── api/              # RAML files
 │   │       └── config.properties # DB config
 ├── pom.xml
 ├── mule-artifact.json
 ├── .gitignore
-├── orders.sql                    # DB schema and seed
 └── README.md
 ```
 
