@@ -1,0 +1,19 @@
+# Ignore build outputs
+target/
+.mule/
+
+# Ignore IDE-specific files
+.settings/
+.idea/
+.classpath
+.project
+
+# Ignore logs
+*.log
+
+# Ignore OS junk
+.DS_Store
+Thumbs.db
+
+# Test artifacts (optional)
+src/test/

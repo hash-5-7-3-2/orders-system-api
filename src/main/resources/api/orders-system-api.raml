@@ -1,0 +1,106 @@
+#%RAML 1.0
+title: Orders System API
+version: v1
+baseUri: http://localhost:8081/api
+mediaType: application/json
+
+types:
+  Order:
+    type: object
+    properties:
+      order_id: integer
+      customer_id: integer
+      status: string
+      order_total: number
+      created_at?: datetime
+  ErrorResponse:
+    type: object
+    properties:
+      error: string
+      description: string
+
+/orders:
+  get:
+    description: Retrieve all orders.
+    responses:
+      200:
+        body:
+          application/json:
+            type: Order[]
+
+  post:
+    description: Create a new order.
+    body:
+      application/json:
+        type: object
+        properties:
+          customerId: integer
+          status?: string
+          orderTotal: number
+    responses:
+      201:
+        body:
+          application/json:
+            type: object
+            properties:
+              success: boolean
+              message: string
+      400:
+        body:
+          application/json:
+            type: ErrorResponse
+      502:
+        body:
+          application/json:
+            type: ErrorResponse
+
+/orders/{order_id}:
+  uriParameters:
+    order_id:
+      type: integer
+      description: The unique ID of the order.
+  get:
+    description: Retrieve a specific order by ID.
+    responses:
+      200:
+        body:
+          application/json:
+            type: Order
+      404:
+        body:
+          application/json:
+            type: ErrorResponse
+  put:
+    description: Update an existing order.
+    body:
+      application/json:
+        type: object
+        properties:
+          customerId: integer
+          status: string
+          orderTotal: number
+    responses:
+      200:
+        body:
+          application/json:
+            type: object
+            properties:
+              success: boolean
+              message: string
+      400:
+        body:
+          application/json:
+            type: ErrorResponse
+      404:
+        body:
+          application/json:
+            type: ErrorResponse
+  delete:
+    description: Delete an order.
+    responses:
+      204:
+        description: Successfully deleted.
+      404:
+        body:
+          application/json:
+            type: ErrorResponse

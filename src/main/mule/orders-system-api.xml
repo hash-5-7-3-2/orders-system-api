@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:db="http://www.mulesoft.org/schema/mule/db"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+          http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+          http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+          http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+          http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <configuration-properties file="config.properties" doc:name="Config Properties" />
+
+    <http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+
+    <db:config name="Database_Config" doc:name="Database Config">
+        <db:my-sql-connection host="${db.host}" port="${db.port}"
+                              user="${db.username}" password="${db.password}"
+                              database="${db.name}" />
+    </db:config>
+
+    <error-handler name="global-error-handler">
+    <!-- Insert these blocks INSIDE your existing <error-handler> -->
+<on-error-propagate type="ORDER:NOT_FOUND">
+    <set-variable variableName="httpStatus" value="404"/>
+    <ee:transform>
+        <ee:message>
+            <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  error: "Not Found",
+  description: error.description
+}]]></ee:set-payload>
+        </ee:message>
+    </ee:transform>
+</on-error-propagate>
+
+<on-error-propagate type="VALIDATION:BAD_REQUEST">
+    <set-variable variableName="httpStatus" value="400"/>
+    <ee:transform>
+        <ee:message>
+            <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  error: "Bad Request",
+  description: error.description
+}]]></ee:set-payload>
+        </ee:message>
+    </ee:transform>
+</on-error-propagate>
+    
+        <on-error-propagate type="DB:CONNECTIVITY">
+            <set-variable variableName="httpStatus" value="502" />
+            <ee:transform>
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  error: "Database connectivity issue",
+  description: error.description default "Unable to connect to DB"
+}]]></ee:set-payload>
+                </ee:message>
+            </ee:transform>
+        </on-error-propagate>
+
+        <on-error-continue type="ANY">
+            <set-variable variableName="httpStatus" value="500" />
+            <ee:transform>
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  error: error.errorType.namespace ++ ":" ++ error.errorType.identifier,
+  description: error.description default "Internal Server Error"
+}]]></ee:set-payload>
+                </ee:message>
+            </ee:transform>
+        </on-error-continue>
+    </error-handler>
+
+    <flow name="getOrders">
+        <http:listener config-ref="HTTP_Listener_config" path="/api/orders" allowedMethods="GET" >
+			<http:response statusCode="#[vars.httpStatus]" />
+			<http:error-response statusCode="#[vars.httpStatus]" />
+		</http:listener>
+        <db:select config-ref="Database_Config">
+            <db:sql><![CDATA[SELECT * FROM Orders]]></db:sql>
+        </db:select>
+        <ee:transform>
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+
+    <flow name="getOrderById">
+        <http:listener config-ref="HTTP_Listener_config" path="/api/orders/{order_id}" allowedMethods="GET" >
+			<http:response statusCode="#[vars.httpStatus]" />
+			<http:error-response statusCode="#[vars.httpStatus]" />
+		</http:listener>
+        <db:select config-ref="Database_Config">
+            <db:sql><![CDATA[SELECT * FROM Orders WHERE order_id = :order_id]]></db:sql>
+            <db:input-parameters><![CDATA[#["order_id": attributes.uriParams.order_id as Number]]]></db:input-parameters>
+        </db:select>
+        <choice>
+            <when expression="#[!isEmpty(payload)]">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload[0]]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </when>
+            <otherwise>
+                <raise-error type="ORDER:NOT_FOUND" description="Order not found" />
+            </otherwise>
+        </choice>
+    </flow>
+
+<flow name="createOrder">
+        <http:listener config-ref="HTTP_Listener_config" path="/api/orders" allowedMethods="POST" />
+
+        <choice>
+            <when expression="#[(payload.customerId default null) == null or (payload.orderTotal default null) == null]">
+                <raise-error type="VALIDATION:BAD_REQUEST" description="customerId and orderTotal are required" />
+            </when>
+        </choice>
+
+        <db:insert config-ref="Database_Config">
+            <db:sql><![CDATA[INSERT INTO Orders (customer_id, status, order_total) VALUES (:customer_id, :status, :order_total)]]></db:sql>
+            <db:input-parameters><![CDATA[#[{
+  customer_id: payload.customerId,
+  status: payload.status default "NEW",
+  order_total: payload.orderTotal
+}]]]></db:input-parameters>
+        </db:insert>
+
+        <ee:transform doc:name="Transform Message" doc:id="08b17bf5-afcf-48dd-a3e4-25afca7f85a0" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="1e326467-62df-4fed-b31c-d528ad2f28ec" message="#[payload]"/>
+		<set-variable variableName="httpStatus" value="201" />
+
+        <ee:transform>
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  success: true,
+  message: "Order created",
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+
+<flow name="updateOrder">
+    <http:listener config-ref="HTTP_Listener_config" path="/api/orders/{order_id}" allowedMethods="PUT" />
+
+    <!-- Input validation -->
+    <choice>
+        <when expression="#[(payload.customerId default null) == null or (payload.status default null) == null or (payload.orderTotal default null) == null]">
+            <raise-error type="VALIDATION:BAD_REQUEST" description="customerId, status, and orderTotal are required" />
+        </when>
+    </choice>
+
+    <!-- Update the order in the database -->
+    <db:update config-ref="Database_Config">
+        <db:sql><![CDATA[
+            UPDATE Orders
+            SET customer_id = :customer_id,
+                status = :status,
+                order_total = :order_total
+            WHERE order_id = :order_id
+        ]]></db:sql>
+        <db:input-parameters><![CDATA[#[{
+  customer_id: payload.customerId,
+  status: payload.status,
+  order_total: payload.orderTotal,
+  order_id: attributes.uriParams.order_id as Number
+}]]]></db:input-parameters>
+    </db:update>
+
+    <!-- Log the update result -->
+    <logger level="INFO" message='#["Rows updated: " ++ (payload.affectedRows default 0) as String]' />
+
+    <!-- Determine response based on affected rows -->
+    <choice>
+        <when expression="#[(payload.affectedRows default 0) > 0]">
+            <set-variable variableName="httpStatus" value="200" />
+            <ee:transform>
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  success: true,
+  message: "Order updated"
+}]]></ee:set-payload>
+                </ee:message>
+            </ee:transform>
+        </when>
+        <otherwise>
+            <raise-error type="ORDER:NOT_FOUND" description="No matching order found to update" />
+        </otherwise>
+    </choice>
+</flow>
+
+
+
+
+    <flow name="deleteOrder">
+        <http:listener config-ref="HTTP_Listener_config" path="/api/orders/{order_id}" allowedMethods="DELETE" >
+			<http:response statusCode="#[vars.httpStatus]" />
+			<http:error-response statusCode="#[vars.httpStatus]" />
+		</http:listener>
+        <db:delete doc:name="Delete" doc:id="ce78f8cd-ae6a-4f58-9771-366f0b1fe81e" config-ref="Database_Config">
+			<db:sql ><![CDATA[DELETE FROM Orders WHERE order_id = :order_id]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+  order_id: attributes.uriParams.order_id as Number
+}]]]></db:input-parameters>
+		</db:delete>
+		<set-payload value="[]"/>
+		<set-variable variableName="httpStatus" value="204" />
+    	
+</flow>
+</mule>
