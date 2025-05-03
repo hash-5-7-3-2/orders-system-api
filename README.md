@@ -112,11 +112,11 @@ VALUES (101, 'NEW', 199.99), (102, 'NEW', 49.50);
 
 Update `config.properties` with your local DB connection:
 ```properties
-db.host=localhost
+db.host=dbhost
 db.port=port
-db.username=root
+db.username=dbusername
 db.password=yourpassword
-db.name=orders_db
+db.name=dbname
 ```
 
 ---
