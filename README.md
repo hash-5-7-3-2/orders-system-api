@@ -143,9 +143,64 @@ db.name=dbname
 
 ---
 
-## 🌐 Optional Cloud Deployment
+## 🚀 How to Run This API Locally Using Anypoint Studio & Prebuilt JAR
 
-This project can be deployed to CloudHub with minimal setup (JAR export or direct deploy from Studio).
+This project provides a ready-to-run `.jar` file that you can launch directly inside **Anypoint Studio**, even without importing the source code.
+
+### ✅ Prerequisites
+
+- Anypoint Studio 7.x (with Mule 4 runtime)
+- Java 8+ installed
+- Internet connection for dependencies (first run)
+
+---
+
+### 📥 Step 1: Download the JAR
+
+Grab the latest compiled JAR file from this repository:
+
+👉 [`orders-system-api-1.0.0.jar`](https://github.com/hash-5-7-3-2/orders-system-api/releases/download/v1/orders-system-api.jar)
+
+
+---
+
+### 🧪 Step 2: Place the JAR into the Mule Runtime App Directory
+
+1. In Anypoint Studio, open the embedded **Mule Runtime installation folder**:
+   - Example: `C:\AnypointStudio\mule-4.4.0\runtime\mule\apps`
+2. Copy the downloaded `.jar` file into the `apps/` folder
+3. Start the Mule Runtime:
+   - From Studio: use the **Console → Local Mule Runtime → Start**
+   - Or run from command line:
+     ```bash
+     ./mule
+     ```
+
+---
+
+### 🌐 Step 3: Access the API
+
+Once the runtime starts, your API will be accessible at:
+
+```
+http://localhost:8081/api/orders
+```
+
+You can now test the full CRUD flow using Postman, curl, or a browser (for GETs).
+
+---
+
+### 🛠 Remember to add your database configurations:
+
+1. `config.properties` file under `mule/apps/orders-system-api/`
+2. Add your DB details:
+   ```properties
+   db.host=dbhost
+   db.port=dbport
+   db.username=dbusername
+   db.password=dbpassword
+   db.name=dbname
+   ```
 
 ---
 
