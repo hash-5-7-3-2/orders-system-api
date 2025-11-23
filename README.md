@@ -204,15 +204,6 @@ You can now test the full CRUD flow using Postman, curl, or a browser (for GETs)
 
 ---
 
-## 👤 Anypoint Exchange
-
-**RAML File**
-
-Refer the documentation for more examples and api specs at: https://anypoint.mulesoft.com/exchange/ce58488b-0ced-4659-8121-bfaea748baf3/orders-system-api/minor/1.0/
-
-
----
-
 ## 📝 License
 
 This project is licensed under the MIT License.
